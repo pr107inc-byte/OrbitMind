@@ -1,4 +1,4 @@
-/*
+﻿/*
 Audio playback and capture library. Choice of public domain or MIT-0. See license statements at the end of this file.
 miniaudio - v0.11.24 - TBD
 
@@ -12143,7 +12143,7 @@ static MA_INLINE void ma_restore_denormals(unsigned int prevState)
 #ifdef MA_ANDROID
 #include <sys/system_properties.h>
 
-int ma_android_sdk_version()
+static MA_INLINE static MA_INLINE int ma_android_sdk_version()
 {
     char sdkVersion[PROP_VALUE_MAX + 1] = {0, };
     if (__system_property_get("ro.build.version.sdk", sdkVersion)) {

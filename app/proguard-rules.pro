@@ -1,8 +1,8 @@
 # Add project specific ProGuard rules here.
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # SECURITY: ProGuard hardening rules (OWASP MASVS MSTG-RESILIENCE-9)
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 # Remove all debug log calls in release (MSTG-RESILIENCE-2)
 -assumenosideeffects class android.util.Log {
@@ -22,7 +22,7 @@
 -keep class androidx.security.crypto.** { *; }
 
 # Keep SecureStorageManager
--keep class com.localmind.app.core.security.SecureStorageManager { *; }
+-keep class com.tk854.localmind.core.security.SecureStorageManager { *; }
 
 # Keep native methods
 -keepclasseswithmembernames class * {
@@ -30,20 +30,20 @@
 }
 
 # Keep LlamaCppBridge (fixed package name typo)
--keep class com.localmind.app.llm.nativelib.LlamaCppBridge { *; }
+-keep class com.tk854.localmind.llm.nativelib.LlamaCppBridge { *; }
 
 # Keep native callback and models for JNI Reflection
--keep class com.localmind.app.llm.nativelib.GenerationCallback { *; }
--keep class com.localmind.app.core.engine.PerfMetrics { *; }
--keep class com.localmind.app.core.engine.ModelMetadata { *; }
+-keep class com.tk854.localmind.llm.nativelib.GenerationCallback { *; }
+-keep class com.tk854.localmind.core.engine.PerfMetrics { *; }
+-keep class com.tk854.localmind.core.engine.ModelMetadata { *; }
 
 # Keep Room entities
--keep class com.localmind.app.data.local.entity.** { *; }
+-keep class com.tk854.localmind.data.local.entity.** { *; }
 
 # Keep data models
--keep class com.localmind.app.data.model.** { *; }
--keep class com.localmind.app.domain.model.** { *; }
--keep class com.localmind.app.data.remote.** { *; }
+-keep class com.tk854.localmind.data.model.** { *; }
+-keep class com.tk854.localmind.domain.model.** { *; }
+-keep class com.tk854.localmind.data.remote.** { *; }
 
 # Hilt
 -dontwarn com.google.errorprone.annotations.**

@@ -9,11 +9,11 @@ plugins {
 }
 
 android {
-    namespace = "com.localmind.app"
+    namespace = "com.tk854.localmind"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.localmind.app"
+        applicationId = "com.tk854.localmind"
         minSdk = 26
         targetSdk = 35
         versionCode = 1       // VERSION: manually change karo jab update karna ho
@@ -37,7 +37,11 @@ android {
                     "-DCMAKE_BUILD_TYPE=Release",
                     "-DANDROID_ARM_NEON=TRUE"
                 )
-                cppFlags += listOf("-Os", "-fvisibility=hidden")
+                // PERF FIX: Removed "-Os" â€” it was OVERRIDING CMakeLists.txt's "-O3".
+                // -Os = optimize for size, -O3 = optimize for speed (SIMD vectorization, loop unrolling).
+                // For LLM inference, -O3 gives measurably better tokens/second.
+                // -fvisibility=hidden already set in CMakeLists.txt, no need to duplicate.
+                cppFlags += listOf("-fvisibility=hidden")
             }
         }
     }
@@ -131,9 +135,9 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     // SECURITY: EncryptedSharedPreferences + MasterKey (OWASP MSTG-STORAGE-1)
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
-    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.biometric:biometric:1.1.0")

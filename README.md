@@ -22,10 +22,10 @@
   <img src="app_icon.png" width="200" alt="LocalMind App Icon" />
 </p>
 
-<h1 align="center">LocalMind — Private On-Device AI Assistant for Android</h1>
+<h1 align="center">LocalMind â€” Private On-Device AI Assistant for Android</h1>
 
 <p align="center">
-  <strong>Run powerful Large Language Models (LLMs) entirely on your Android phone — no cloud servers, no API keys, no monthly subscriptions, no data collection. 100% offline, 100% private.</strong>
+  <strong>Run powerful Large Language Models (LLMs) entirely on your Android phone â€” no cloud servers, no API keys, no monthly subscriptions, no data collection. 100% offline, 100% private.</strong>
 </p>
 
 <p align="center">
@@ -33,22 +33,22 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/tk85457/LocalMind/releases/latest"><strong>📥 Download Latest APK</strong></a> ·
-  <a href="#-getting-started"><strong>🚀 Getting Started</strong></a> ·
-  <a href="#-features"><strong>✨ Features</strong></a> ·
-  <a href="#-architecture"><strong>🏗️ Architecture</strong></a> ·
-  <a href="#-tech-stack"><strong>🛠️ Tech Stack</strong></a>
+  <a href="https://github.com/tk85457/LocalMind/releases/latest"><strong>ðŸ“¥ Download Latest APK</strong></a> Â·
+  <a href="#-getting-started"><strong>ðŸš€ Getting Started</strong></a> Â·
+  <a href="#-features"><strong>âœ¨ Features</strong></a> Â·
+  <a href="#-architecture"><strong>ðŸ—ï¸ Architecture</strong></a> Â·
+  <a href="#-tech-stack"><strong>ðŸ› ï¸ Tech Stack</strong></a>
 </p>
 
 ---
 
-## 📖 About LocalMind
+## ðŸ“– About LocalMind
 
-**LocalMind** is a privacy-first, open-source Android application that brings the power of Large Language Models directly to your mobile device. Unlike cloud-based AI assistants like ChatGPT, Google Gemini, or Claude — LocalMind runs **100% on your phone** using the [llama.cpp](https://github.com/ggerganov/llama.cpp) inference engine with GGUF quantized models.
+**LocalMind** is a privacy-first, open-source Android application that brings the power of Large Language Models directly to your mobile device. Unlike cloud-based AI assistants like ChatGPT, Google Gemini, or Claude â€” LocalMind runs **100% on your phone** using the [llama.cpp](https://github.com/ggerganov/llama.cpp) inference engine with GGUF quantized models.
 
 ### Why LocalMind?
 
-| ❌ Cloud AI Problems | ✅ LocalMind Solution |
+| âŒ Cloud AI Problems | âœ… LocalMind Solution |
 |---|---|
 | Your data sent to remote servers | All data stays on your device |
 | Requires internet connection | Works completely offline |
@@ -59,115 +59,115 @@
 
 ---
 
-## ✨ Features
+## âœ¨ Features
 
-### 🔒 Privacy & Security
-- **100% On-Device Inference** — Your conversations never leave your phone
-- **Zero Network Requests** — No analytics, no tracking, no cloud dependencies
-- **Biometric Authentication** — Lock LocalMind with fingerprint or face unlock
-- **Local-First Storage** — All data stored in encrypted Room database
+### ðŸ”’ Privacy & Security
+- **100% On-Device Inference** â€” Your conversations never leave your phone
+- **Zero Network Requests** â€” No analytics, no tracking, no cloud dependencies
+- **Biometric Authentication** â€” Lock LocalMind with fingerprint or face unlock
+- **Local-First Storage** â€” All data stored in encrypted Room database
 
-### 💬 Intelligent Chat Interface
-- **Material 3 Design** — Beautiful UI following Google's latest design language
-- **Markdown Rendering** — Full markdown support with syntax highlighting via Markwon + Prism4j
-- **Token-by-Token Streaming** — Real-time response generation for natural conversation flow
-- **Chat History** — Persistent conversations with full search functionality
-- **Collections** — Organize chats into custom folders and categories
+### ðŸ’¬ Intelligent Chat Interface
+- **Material 3 Design** â€” Beautiful UI following Google's latest design language
+- **Markdown Rendering** â€” Full markdown support with syntax highlighting via Markwon + Prism4j
+- **Token-by-Token Streaming** â€” Real-time response generation for natural conversation flow
+- **Chat History** â€” Persistent conversations with full search functionality
+- **Collections** â€” Organize chats into custom folders and categories
 
-### 🤖 AI Model Management
-- **Hugging Face Integration** — Browse, search, and download GGUF models from the world's largest model hub
-- **Multiple Model Support** — Switch between different models (Llama, Mistral, Phi, Gemma, Qwen, etc.)
-- **Background Downloads** — Download models via WorkManager with progress tracking
-- **Model Cards** — View model metadata, parameters, and quantization details
-- **Custom Prompt Templates** — Configure system prompts and chat templates per model
+### ðŸ¤– AI Model Management
+- **Hugging Face Integration** â€” Browse, search, and download GGUF models from the world's largest model hub
+- **Multiple Model Support** â€” Switch between different models (Llama, Mistral, Phi, Gemma, Qwen, etc.)
+- **Background Downloads** â€” Download models via WorkManager with progress tracking
+- **Model Cards** â€” View model metadata, parameters, and quantization details
+- **Custom Prompt Templates** â€” Configure system prompts and chat templates per model
 
-### 📁 RAG — Document Chat (Retrieval-Augmented Generation)
-- **PDF Upload & Parsing** — Extract text from PDF files via PdfBox Android
-- **Context-Aware Responses** — Ask questions about your documents and get accurate answers
-- **Local Document Processing** — No documents sent to any server, ever
+### ðŸ“ RAG â€” Document Chat (Retrieval-Augmented Generation)
+- **PDF Upload & Parsing** â€” Extract text from PDF files via PdfBox Android
+- **Context-Aware Responses** â€” Ask questions about your documents and get accurate answers
+- **Local Document Processing** â€” No documents sent to any server, ever
 
-### ⚙️ Advanced Inference Settings
-- **Temperature** — Control response creativity (0.0 = deterministic → 2.0 = creative)
-- **Top-P (Nucleus Sampling)** — Fine-tune probability distributions
-- **Top-K Sampling** — Limit vocabulary selection per token
-- **Repeat Penalty** — Prevent repetitive outputs
-- **Stop Words** — Custom stop sequences for response termination
-- **BOS/EOS Tokens** — Granular control over generation boundaries
-- **GPU Layer Offloading** — Maximize performance with hardware acceleration
+### âš™ï¸ Advanced Inference Settings
+- **Temperature** â€” Control response creativity (0.0 = deterministic â†’ 2.0 = creative)
+- **Top-P (Nucleus Sampling)** â€” Fine-tune probability distributions
+- **Top-K Sampling** â€” Limit vocabulary selection per token
+- **Repeat Penalty** â€” Prevent repetitive outputs
+- **Stop Words** â€” Custom stop sequences for response termination
+- **BOS/EOS Tokens** â€” Granular control over generation boundaries
+- **GPU Layer Offloading** â€” Maximize performance with hardware acceleration
 
-### 📊 Performance Monitoring
-- **Tokens/Second (t/s)** — Real-time throughput measurement
-- **Time To First Token (TTFT)** — Latency tracking and optimization
-- **GPU Layer Usage** — Monitor hardware utilization
-- **Memory Footprint** — Track RAM consumption during inference
+### ðŸ“Š Performance Monitoring
+- **Tokens/Second (t/s)** â€” Real-time throughput measurement
+- **Time To First Token (TTFT)** â€” Latency tracking and optimization
+- **GPU Layer Usage** â€” Monitor hardware utilization
+- **Memory Footprint** â€” Track RAM consumption during inference
 
-### 🎨 Theming & Localization
-- **Material You Dynamic Theming** — Automatic color extraction from wallpaper
-- **Dark & Light Modes** — Full theme support with smooth transitions
-- **Lottie Animations** — Premium micro-animations throughout the UI
-- **Multi-Language Support** — Localized strings with full i18n/l10n framework
+### ðŸŽ¨ Theming & Localization
+- **Material You Dynamic Theming** â€” Automatic color extraction from wallpaper
+- **Dark & Light Modes** â€” Full theme support with smooth transitions
+- **Lottie Animations** â€” Premium micro-animations throughout the UI
+- **Multi-Language Support** â€” Localized strings with full i18n/l10n framework
 
 ---
 
-## 🏗️ Architecture
+## ðŸ—ï¸ Architecture
 
 LocalMind follows **Clean Architecture** with **MVVM** pattern and **Hilt dependency injection**, ensuring separation of concerns, testability, and maintainability.
 
 ```
-com.localmind.app/
-│
-├── 📦 core/                       # Foundation Layer
-│   ├── di/                        # Hilt modules (Database, Network, Engine)
-│   ├── engine/                    # LLM engine lifecycle & orchestration
-│   ├── performance/               # Benchmarking & performance profiling
-│   ├── rollout/                   # Feature flags & staged rollouts
-│   ├── storage/                   # File system & model storage manager
-│   └── utils/                     # Shared utilities & extensions
-│
-├── 📊 data/                       # Data Layer
-│   ├── local/                     # Room DAOs, entities, type converters
-│   ├── mapper/                    # Entity ↔ Domain model mappers
-│   ├── remote/                    # Hugging Face REST API (Retrofit)
-│   └── repository/                # Repository implementations
-│
-├── 🧩 domain/                     # Domain Layer (Pure Kotlin)
-│   ├── model/                     # Domain models (Chat, Message, Model, Settings)
-│   └── usecase/                   # Business logic use cases
-│
-├── 🤖 llm/                        # LLM Integration Layer
-│   ├── native/                    # JNI bridge to llama.cpp (C++)
-│   ├── nativelib/                 # Native library loader & lifecycle
-│   └── prompt/                    # Prompt template engine & chat formatters
-│
-├── 🧭 navigation/                 # Navigation graph (Compose Navigation)
-├── 📡 receiver/                   # Broadcast receivers
-├── ⚙️ service/                    # Background services (foreground inference)
-│
-├── 🎨 ui/                         # Presentation Layer
-│   ├── components/                # Reusable Compose UI components
-│   ├── screens/                   # Screen composables (Chat, Models, Settings)
-│   ├── theme/                     # Material 3 theme, colors, typography
-│   ├── utils/                     # UI helpers & animation utilities
-│   └── viewmodel/                 # ViewModels with StateFlow & SavedStateHandle
-│
-└── 👷 worker/                     # WorkManager tasks (model downloads)
+com.tk854.localmind/
+â”‚
+â”œâ”€â”€ ðŸ“¦ core/                       # Foundation Layer
+â”‚   â”œâ”€â”€ di/                        # Hilt modules (Database, Network, Engine)
+â”‚   â”œâ”€â”€ engine/                    # LLM engine lifecycle & orchestration
+â”‚   â”œâ”€â”€ performance/               # Benchmarking & performance profiling
+â”‚   â”œâ”€â”€ rollout/                   # Feature flags & staged rollouts
+â”‚   â”œâ”€â”€ storage/                   # File system & model storage manager
+â”‚   â””â”€â”€ utils/                     # Shared utilities & extensions
+â”‚
+â”œâ”€â”€ ðŸ“Š data/                       # Data Layer
+â”‚   â”œâ”€â”€ local/                     # Room DAOs, entities, type converters
+â”‚   â”œâ”€â”€ mapper/                    # Entity â†” Domain model mappers
+â”‚   â”œâ”€â”€ remote/                    # Hugging Face REST API (Retrofit)
+â”‚   â””â”€â”€ repository/                # Repository implementations
+â”‚
+â”œâ”€â”€ ðŸ§© domain/                     # Domain Layer (Pure Kotlin)
+â”‚   â”œâ”€â”€ model/                     # Domain models (Chat, Message, Model, Settings)
+â”‚   â””â”€â”€ usecase/                   # Business logic use cases
+â”‚
+â”œâ”€â”€ ðŸ¤– llm/                        # LLM Integration Layer
+â”‚   â”œâ”€â”€ native/                    # JNI bridge to llama.cpp (C++)
+â”‚   â”œâ”€â”€ nativelib/                 # Native library loader & lifecycle
+â”‚   â””â”€â”€ prompt/                    # Prompt template engine & chat formatters
+â”‚
+â”œâ”€â”€ ðŸ§­ navigation/                 # Navigation graph (Compose Navigation)
+â”œâ”€â”€ ðŸ“¡ receiver/                   # Broadcast receivers
+â”œâ”€â”€ âš™ï¸ service/                    # Background services (foreground inference)
+â”‚
+â”œâ”€â”€ ðŸŽ¨ ui/                         # Presentation Layer
+â”‚   â”œâ”€â”€ components/                # Reusable Compose UI components
+â”‚   â”œâ”€â”€ screens/                   # Screen composables (Chat, Models, Settings)
+â”‚   â”œâ”€â”€ theme/                     # Material 3 theme, colors, typography
+â”‚   â”œâ”€â”€ utils/                     # UI helpers & animation utilities
+â”‚   â””â”€â”€ viewmodel/                 # ViewModels with StateFlow & SavedStateHandle
+â”‚
+â””â”€â”€ ðŸ‘· worker/                     # WorkManager tasks (model downloads)
 ```
 
 ### Native Layer (C++ / NDK)
 
 ```
 app/src/main/cpp/
-├── CMakeLists.txt                 # CMake build configuration
-├── jni_bridge.cpp                 # JNI bridge: Kotlin ↔ llama.cpp
-└── llama.cpp/                     # llama.cpp submodule (inference engine)
-    ├── include/                   # Public headers (llama.h, ggml.h)
-    ├── src/                       # Core source files
-    └── ggml/                      # GGML tensor library
+â”œâ”€â”€ CMakeLists.txt                 # CMake build configuration
+â”œâ”€â”€ jni_bridge.cpp                 # JNI bridge: Kotlin â†” llama.cpp
+â””â”€â”€ llama.cpp/                     # llama.cpp submodule (inference engine)
+    â”œâ”€â”€ include/                   # Public headers (llama.h, ggml.h)
+    â”œâ”€â”€ src/                       # Core source files
+    â””â”€â”€ ggml/                      # GGML tensor library
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## ðŸ› ï¸ Tech Stack
 
 | Category | Technology | Purpose |
 |----------|-----------|---------|
@@ -189,7 +189,7 @@ app/src/main/cpp/
 
 ---
 
-## 🚀 Getting Started
+## ðŸš€ Getting Started
 
 ### Prerequisites
 
@@ -222,21 +222,21 @@ git submodule update --init --recursive
 
 Download the latest release APK from the [Releases](https://github.com/tk85457/LocalMind/releases/latest) page and install directly on your Android device.
 
-> 📖 See **[BUILD.md](BUILD.md)** for detailed build instructions, signing configuration, and troubleshooting.
+> ðŸ“– See **[BUILD.md](BUILD.md)** for detailed build instructions, signing configuration, and troubleshooting.
 
 ---
 
-## 📱 Device Compatibility
+## ðŸ“± Device Compatibility
 
 | Spec | Requirement |
 |------|------------|
 | **Minimum Android** | 8.0 Oreo (API 26) |
 | **Target Android** | 14 (API 34) |
 | **Architecture** | arm64-v8a (64-bit ARM) |
-| **RAM (Small Models)** | 4GB+ (1B–3B parameter models) |
+| **RAM (Small Models)** | 4GB+ (1Bâ€“3B parameter models) |
 | **RAM (Medium Models)** | 6GB+ (7B parameter models) |
 | **RAM (Large Models)** | 8GB+ (13B+ parameter models) |
-| **Storage** | 2–10GB per model (varies by quantization) |
+| **Storage** | 2â€“10GB per model (varies by quantization) |
 
 ### Supported Model Formats
 
@@ -245,22 +245,22 @@ Download the latest release APK from the [Releases](https://github.com/tk85457/L
 
 ---
 
-## 🗺️ Roadmap
+## ðŸ—ºï¸ Roadmap
 
-- [ ] 🖼️ Multimodal support (image + text models like LLaVA)
-- [ ] 🎙️ Voice input with on-device speech-to-text
-- [ ] 📤 Chat export (JSON, Markdown, PDF)
-- [ ] 🔌 Plugin system for custom tools
-- [ ] 🌐 Web UI companion app
-- [ ] 📊 Advanced RAG with vector embeddings
-- [ ] ⌚ Wear OS companion
-- [ ] 🖥️ Desktop version (Windows/macOS/Linux)
+- [ ] ðŸ–¼ï¸ Multimodal support (image + text models like LLaVA)
+- [ ] ðŸŽ™ï¸ Voice input with on-device speech-to-text
+- [ ] ðŸ“¤ Chat export (JSON, Markdown, PDF)
+- [ ] ðŸ”Œ Plugin system for custom tools
+- [ ] ðŸŒ Web UI companion app
+- [ ] ðŸ“Š Advanced RAG with vector embeddings
+- [ ] âŒš Wear OS companion
+- [ ] ðŸ–¥ï¸ Desktop version (Windows/macOS/Linux)
 
 ---
 
-## 🤝 Contributing
+## ðŸ¤ Contributing
 
-Contributions are welcome! Whether it's bug fixes, new features, documentation, or translations — all contributions are appreciated.
+Contributions are welcome! Whether it's bug fixes, new features, documentation, or translations â€” all contributions are appreciated.
 
 1. **Fork** the repository
 2. **Create** your feature branch: `git checkout -b feature/amazing-feature`
@@ -270,13 +270,13 @@ Contributions are welcome! Whether it's bug fixes, new features, documentation, 
 
 ---
 
-## 📄 License
+## ðŸ“„ License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** â€” see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgments
+## ðŸ™ Acknowledgments
 
 | Project | Contribution |
 |---------|-------------|
@@ -288,22 +288,22 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 ---
 
-## ⭐ Star History
+## â­ Star History
 
-If you find LocalMind useful, please consider giving it a ⭐ — it helps others discover the project!
+If you find LocalMind useful, please consider giving it a â­ â€” it helps others discover the project!
 
 ---
 
 <p align="center">
-  <strong>🧠 LocalMind — Your AI. Your Data. Your Device.</strong>
+  <strong>ðŸ§  LocalMind â€” Your AI. Your Data. Your Device.</strong>
 </p>
 <p align="center">
-  Built with ❤️ for privacy-conscious AI enthusiasts
+  Built with â¤ï¸ for privacy-conscious AI enthusiasts
 </p>
 <p align="center">
-  <a href="https://github.com/tk85457/LocalMind/releases/latest">📥 Download</a> ·
-  <a href="https://github.com/tk85457/LocalMind/issues">🐛 Report Bug</a> ·
-  <a href="https://github.com/tk85457/LocalMind/issues">💡 Request Feature</a>
+  <a href="https://github.com/tk85457/LocalMind/releases/latest">ðŸ“¥ Download</a> Â·
+  <a href="https://github.com/tk85457/LocalMind/issues">ðŸ› Report Bug</a> Â·
+  <a href="https://github.com/tk85457/LocalMind/issues">ðŸ’¡ Request Feature</a>
 </p>
 
 ---

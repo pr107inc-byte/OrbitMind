@@ -15,7 +15,7 @@
 #include "ggml.h"
 #include "ggml-backend.h"
 #include "llama.h"
-// llama-chat.h internal header removed — using public llama_chat_apply_template() API instead
+// llama-chat.h internal header removed â€” using public llama_chat_apply_template() API instead
 #include "llama.cpp/tools/mtmd/mtmd.h"
 #include "llama.cpp/tools/mtmd/mtmd-helper.h"
 
@@ -100,10 +100,10 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     }
 
     // Cache classes to prevent FindClass failures on background threads
-    jclass perfClass = env->FindClass("com/localmind/app/core/engine/PerfMetrics");
+    jclass perfClass = env->FindClass("com/tk854/localmind/core/engine/PerfMetrics");
     if (perfClass) g_PerfMetricsClass = (jclass)env->NewGlobalRef(perfClass);
 
-    jclass metaClass = env->FindClass("com/localmind/app/core/engine/ModelMetadata");
+    jclass metaClass = env->FindClass("com/tk854/localmind/core/engine/ModelMetadata");
     if (metaClass) g_ModelMetadataClass = (jclass)env->NewGlobalRef(metaClass);
 
     jclass mapClass = env->FindClass("java/util/HashMap");
@@ -123,6 +123,123 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* vm, void* reserved) {
         llama_backend_free();
     }
 }
+
+// â”€â”€ PocketPal-style ThinkingStateMachine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// C++ layer separates <think> reasoning from answer tokens.
+// onToken = answer, onReasoning = thinking content.
+// Handles split tokens via pending buffer.
+struct ThinkingStateMachine {
+    bool in_thinking = false;
+    std::string active_end_tag;
+    std::string pending;
+
+    struct TagPair { const char* open; const char* close; };
+    static const TagPair TAGS[4];
+
+    bool process(const std::string& text, JNIEnv* env, jobject cb,
+                 jmethodID on_token, jmethodID on_reasoning,
+                 bool* stop_flag, const std::vector<std::string>& stops) {
+        pending += text;
+        while (!pending.empty()) {
+            if (!in_thinking) {
+                size_t best = std::string::npos; int best_tag = -1;
+                for (int t = 0; t < 4; t++) {
+                    size_t p = find_ic(pending, TAGS[t].open);
+                    if (p != std::string::npos && (best == std::string::npos || p < best))
+                    { best = p; best_tag = t; }
+                }
+                if (best != std::string::npos) {
+                    if (best > 0 && emit_ans(env, cb, on_token, pending.substr(0, best), stop_flag, stops)) return true;
+                    in_thinking = true;
+                    active_end_tag = TAGS[best_tag].close;
+                    pending = pending.substr(best + strlen(TAGS[best_tag].open));
+                } else {
+                    size_t lt = pending.rfind('<');
+                    if (lt != std::string::npos && pending.size() - lt < 14 && could_open(pending.substr(lt))) {
+                        if (lt > 0) { if (emit_ans(env, cb, on_token, pending.substr(0,lt), stop_flag, stops)) return true; pending = pending.substr(lt); }
+                        break;
+                    }
+                    if (emit_ans(env, cb, on_token, pending, stop_flag, stops)) return true;
+                    pending.clear(); break;
+                }
+            } else {
+                size_t ep = find_ic(pending, active_end_tag.c_str());
+                if (ep != std::string::npos) {
+                    if (ep > 0) emit_rsn(env, cb, on_reasoning, pending.substr(0, ep));
+                    in_thinking = false;
+                    pending = pending.substr(ep + active_end_tag.size());
+                } else {
+                    size_t lt = pending.rfind('<');
+                    if (lt != std::string::npos && pending.size() - lt < 16) {
+                        if (lt > 0) { emit_rsn(env, cb, on_reasoning, pending.substr(0,lt)); pending = pending.substr(lt); }
+                        break;
+                    }
+                    emit_rsn(env, cb, on_reasoning, pending); pending.clear(); break;
+                }
+            }
+        }
+        return false;
+    }
+
+    void flush(JNIEnv* env, jobject cb, jmethodID on_token, jmethodID on_reasoning,
+               bool* stop_flag, const std::vector<std::string>& stops) {
+        if (pending.empty()) return;
+        if (in_thinking) emit_rsn(env, cb, on_reasoning, pending);
+        else emit_ans(env, cb, on_token, pending, stop_flag, stops);
+        pending.clear();
+    }
+
+private:
+    static size_t find_ic(const std::string& h, const char* n) {
+        if (!n || !*n) return std::string::npos;
+        size_t nl = strlen(n);
+        if (nl > h.size()) return std::string::npos;
+        for (size_t i = 0; i <= h.size() - nl; i++) {
+            bool ok = true;
+            for (size_t j = 0; j < nl && ok; j++)
+                ok = tolower((unsigned char)h[i+j]) == tolower((unsigned char)n[j]);
+            if (ok) return i;
+        }
+        return std::string::npos;
+    }
+    bool could_open(const std::string& s) {
+        for (int t = 0; t < 4; t++) {
+            size_t ol = strlen(TAGS[t].open);
+            if (s.size() <= ol) {
+                bool ok = true;
+                for (size_t i = 0; i < s.size() && ok; i++)
+                    ok = tolower((unsigned char)s[i]) == tolower((unsigned char)TAGS[t].open[i]);
+                if (ok) return true;
+            }
+        }
+        return false;
+    }
+    bool emit_ans(JNIEnv* env, jobject cb, jmethodID m, const std::string& t,
+                  bool* stop_flag, const std::vector<std::string>& stops) {
+        if (t.empty()) return false;
+        for (auto& sw : stops) {
+            if (!sw.empty() && t.size() >= sw.size() &&
+                t.compare(t.size()-sw.size(), sw.size(), sw) == 0) {
+                *stop_flag = true;
+                size_t cut = t.size() - sw.size();
+                if (cut > 0) { jstring js = env->NewStringUTF(t.substr(0,cut).c_str()); if (js) { env->CallVoidMethod(cb,m,js); env->DeleteLocalRef(js); } }
+                return true;
+            }
+        }
+        jstring js = env->NewStringUTF(t.c_str());
+        if (js && !env->ExceptionCheck()) { env->CallVoidMethod(cb,m,js); env->DeleteLocalRef(js); }
+        return false;
+    }
+    void emit_rsn(JNIEnv* env, jobject cb, jmethodID m, const std::string& t) {
+        if (t.empty() || !m) return;
+        jstring js = env->NewStringUTF(t.c_str());
+        if (js && !env->ExceptionCheck()) { env->CallVoidMethod(cb,m,js); env->DeleteLocalRef(js); }
+    }
+};
+const ThinkingStateMachine::TagPair ThinkingStateMachine::TAGS[4] = {
+    {"<think>","</think>"},{"<thinking>","</thinking>"},
+    {"<thought>","</thought>"},{"<reasoning>","</reasoning>"}
+};
 
 static inline bool is_cont(uint8_t b) { return (b & 0xC0u) == 0x80u; }
 
@@ -168,7 +285,7 @@ static std::string drain_valid_utf8(std::string& buffer) {
 
 extern "C" {
 
-JNIEXPORT jboolean JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_initializeBackend(
+JNIEXPORT jboolean JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_initializeBackend(
     JNIEnv* env, jobject, jstring native_lib_dir) {
     std::string preferred_dir;
     if (native_lib_dir != nullptr) {
@@ -181,7 +298,7 @@ JNIEXPORT jboolean JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_i
     return ensure_backend_initialized(preferred_dir) ? JNI_TRUE : JNI_FALSE;
 }
 
-JNIEXPORT jlong JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_loadModel(
+JNIEXPORT jlong JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_loadModel(
     JNIEnv* env, jobject, jstring path, jboolean use_mlock, jboolean use_mmap, jint context_size, jint thread_count_decode, jint thread_count_prefill, jint gpu_layers,
     jint batch_size, jint physical_batch_size, jboolean flash_attention, jstring key_cache_type, jstring value_cache_type, jfloat defrag_threshold, jboolean kv_unified) {
     // POCKETPAL FIX: kv_unified param now properly received from Kotlin.
@@ -251,7 +368,7 @@ JNIEXPORT jlong JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_load
         ctx_params.type_v = parse_cache_type(value_cache_type);
         ctx_params.defrag_thold = defrag_threshold;
 
-        // POCKETPAL FIX: kv_unified — Critical! Unified KV cache pool.
+        // POCKETPAL FIX: kv_unified â€” Critical! Unified KV cache pool.
         // This can save up to 7GB RAM on large models and speeds up memory access.
         // Now properly controlled by caller (default = true from Kotlin).
         ctx_params.kv_unified = (bool)kv_unified;
@@ -287,7 +404,7 @@ JNIEXPORT jlong JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_load
     } catch (const std::exception& e) { return 0; }
 }
 
-JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_generate(
+JNIEXPORT void JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_generate(
     JNIEnv* env, jobject thiz, jlong context_ptr, jstring prompt, jobjectArray stop_tokens,
     jfloat temperature, jfloat top_p, jint top_k, jfloat repeat_penalty, jint penalty_last_n,
     jint max_tokens, jboolean should_update_cache, jboolean cache_prompt, jfloat defrag_threshold,
@@ -297,17 +414,18 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
     jfloat typical_p,
     jfloat penalty_freq, jfloat penalty_present,
     jint mirostat, jfloat mirostat_tau, jfloat mirostat_eta,
+    jboolean suppress_think_token,
     jobject callback) {
 
     if (context_ptr == 0) return;
     auto* context = reinterpret_cast<LlamaContext*>(context_ptr);
 
     // TTFT FIX: context->mutex sirf is_generating/should_stop set karne ke liye.
-    // Ye fast hai (nanoseconds) — generation loop mutex ke baahar chalta hai.
+    // Ye fast hai (nanoseconds) â€” generation loop mutex ke baahar chalta hai.
     {
         std::lock_guard<std::mutex> lock(context->mutex);
         if (context->is_generating) {
-            LOGI("Native: generate() called while already generating — ignoring");
+            LOGI("Native: generate() called while already generating â€” ignoring");
             return;
         }
         context->is_generating = true;
@@ -332,8 +450,11 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
         }
 
         jclass callback_class = env->GetObjectClass(callback);
-        jmethodID on_token_method = env->GetMethodID(callback_class, "onToken", "(Ljava/lang/String;)V");
+        jmethodID on_token_method    = env->GetMethodID(callback_class, "onToken",    "(Ljava/lang/String;)V");
+        jmethodID on_reasoning_method = env->GetMethodID(callback_class, "onReasoning", "(Ljava/lang/String;)V");
         jmethodID on_complete_method = env->GetMethodID(callback_class, "onComplete", "()V");
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        ThinkingStateMachine thinking_sm;
 
         std::vector<llama_token> tokens;
         tokens.resize(std::max<size_t>(strlen(prompt_str) + 512, 2048));
@@ -401,11 +522,38 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
         LOGI("TTFT-DIAG: prefill_ms=%.1f new_tokens=%d ms_per_token=%.2f | perf: t_p_eval_ms=%.1f n_p_eval=%d",
              prefill_ms, new_tokens_evaluated, tpp,
              perf.t_p_eval_ms, perf.n_p_eval);
+        // PERF FIX: Reset perf counters after prefill so generation t/s
+        // is NOT diluted by prefill time. Without this, getPerfMetrics()
+        // reports combined prefill+gen speed which is misleading.
+        llama_perf_context_reset(context->ctx);
 
         llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
         llama_sampler* chain = llama_sampler_chain_init(sparams);
 
-        // PocketPal parity: penalties (repeat, freq, present) — same order as llama.cpp server
+        // LOGIT BIAS: suppress <think> token when thinking is disabled
+        // Find <think> token ID and set bias to -INFINITY to block it
+        if (suppress_think_token) {
+            const llama_vocab* vocab_lb = llama_model_get_vocab(context->model);
+            const char* think_str = "<think>";
+            std::vector<llama_token> think_tokens(8);
+            int n = llama_tokenize(vocab_lb, think_str, strlen(think_str),
+                                   think_tokens.data(), think_tokens.size(), false, true);
+            if (n > 0) {
+                think_tokens.resize(n);
+                std::vector<llama_logit_bias> biases;
+                for (auto tok : think_tokens) {
+                    biases.push_back({tok, -std::numeric_limits<float>::infinity()});
+                }
+                llama_sampler_chain_add(chain,
+                    llama_sampler_init_logit_bias(
+                        llama_vocab_n_tokens(vocab_lb),
+                        (int32_t)biases.size(),
+                        biases.data()));
+                LOGI("LogitBias: suppressed %d <think> tokens", n);
+            }
+        }
+
+        // PocketPal parity: penalties (repeat, freq, present) â€” same order as llama.cpp server
         llama_sampler_chain_add(chain, llama_sampler_init_penalties(penalty_last_n, repeat_penalty, penalty_freq, penalty_present));
 
         if (mirostat == 0) {
@@ -436,7 +584,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
             llama_sampler_chain_add(chain, llama_sampler_init_mirostat_v2(0 /*seed*/, mirostat_tau, mirostat_eta));
         }
 
-        // PocketPal: Seed support — -1 = random, else reproducible output
+        // PocketPal: Seed support â€” -1 = random, else reproducible output
         uint32_t effective_seed = (seed == -1)
             ? static_cast<uint32_t>(std::chrono::steady_clock::now().time_since_epoch().count())
             : static_cast<uint32_t>(seed);
@@ -446,6 +594,10 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
         int n_generated = 0;
         std::vector<llama_token> generated_tokens;
 
+        // NOTE: Token batching at JNI level is NOT needed because ThinkingStateMachine
+        // already buffers tokens internally (pending buffer) and emits in batches.
+        // Adding a second batching layer would add latency without benefit.
+
         while (n_generated < max_tokens) {
             if (context->should_stop) break;
 
@@ -454,31 +606,28 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
 
             generated_tokens.push_back(new_token);
 
+            // PERF FIX: Accept sampler state BEFORE decode.
+            // accept() updates penalty buffers (CPU-only, ~1Î¼s).
+            // Doing it before decode() lets the CPU finish this work while
+            // decode() starts its memory-bound computation.
+            llama_sampler_accept(chain, new_token);
+
             char token_str[1024];
             int n = llama_token_to_piece(vocab, new_token, token_str, sizeof(token_str), 0, false);
             if (n > 0) {
                 utf8_buffer.append(token_str, token_str + std::min(n, (int)sizeof(token_str)));
                 std::string safe_piece = drain_valid_utf8(utf8_buffer);
 
+                // PocketPal-style: ThinkingStateMachine routes tokens
+                // answer -> onToken, <think> content -> onReasoning
                 if (!safe_piece.empty()) {
-                    jstring token_obj = env->NewStringUTF(safe_piece.c_str());
-                    if (token_obj && !env->ExceptionCheck()) {
-                        env->CallVoidMethod(callback, on_token_method, token_obj);
-                        env->DeleteLocalRef(token_obj);
-                    }
-                }
-
-                // Stop Word Check
-                for (const auto& stop_word : stop_words) {
-                    if (utf8_buffer.size() >= stop_word.size()) {
-                        if (utf8_buffer.compare(utf8_buffer.size() - stop_word.size(), stop_word.size(), stop_word) == 0) {
-                            LOGI("Stop token reached: %s", stop_word.c_str());
-                            context->should_stop = true;
-                            break;
-                        }
-                    }
+                    thinking_sm.process(safe_piece, env, callback,
+                        on_token_method, on_reasoning_method,
+                        &context->should_stop, stop_words);
                 }
             }
+
+            if (context->should_stop) break;
 
             // Decode the next token
             batch.n_tokens = 1;
@@ -493,14 +642,10 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
                 break;
             }
 
-            llama_sampler_accept(chain, new_token);
-
-            // Note: Optimization #3 (Manual defrag call) is intentionally removed here
-            // because this specific branch of llama.cpp does not expose a public
-            // `llama_kv_cache_defrag` equivalent for manual invocation during streaming.
-
             n_generated++;
         }
+        thinking_sm.flush(env, callback, on_token_method, on_reasoning_method,
+                          &context->should_stop, stop_words);
 
         // Update last_tokens for next turn's prefix caching ONLY if requested (usually for chat, not utility tasks)
         if (should_update_cache) {
@@ -536,7 +681,7 @@ cleanup:
 // PocketPal: ctx.detokenize([eos_token_id]) + ctx.model.metadata
 // ============================================================
 
-JNIEXPORT jstring JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_getEosToken(
+JNIEXPORT jstring JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_getEosToken(
     JNIEnv* env, jobject, jlong context_ptr) {
     if (context_ptr == 0) return nullptr;
     auto* context = reinterpret_cast<LlamaContext*>(context_ptr);
@@ -559,7 +704,7 @@ JNIEXPORT jstring JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_ge
     return env->NewStringUTF(eos_str);
 }
 
-JNIEXPORT jstring JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_getChatTemplate(
+JNIEXPORT jstring JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_getChatTemplate(
     JNIEnv* env, jobject, jlong context_ptr) {
     if (context_ptr == 0) return nullptr;
     auto* context = reinterpret_cast<LlamaContext*>(context_ptr);
@@ -572,13 +717,13 @@ JNIEXPORT jstring JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_ge
     return env->NewStringUTF(tmpl);
 }
 
-JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_stopGeneration(JNIEnv* env, jobject, jlong context_ptr) {
+JNIEXPORT void JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_stopGeneration(JNIEnv* env, jobject, jlong context_ptr) {
     if (context_ptr == 0) return;
     auto* context = reinterpret_cast<LlamaContext*>(context_ptr);
     context->should_stop = true; // No mutex lock here to prevent deadlocks during UI thread calls
 }
 
-JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_clearPrefixCache(JNIEnv* env, jobject, jlong context_ptr) {
+JNIEXPORT void JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_clearPrefixCache(JNIEnv* env, jobject, jlong context_ptr) {
     if (context_ptr == 0) return;
     auto* context = reinterpret_cast<LlamaContext*>(context_ptr);
 
@@ -593,7 +738,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_clear
     LOGI("Native: Prefix cache cleared");
 }
 
-JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_unloadModel(JNIEnv* env, jobject, jlong context_ptr) {
+JNIEXPORT void JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_unloadModel(JNIEnv* env, jobject, jlong context_ptr) {
     if (context_ptr == 0) return;
     auto* context = reinterpret_cast<LlamaContext*>(context_ptr);
 
@@ -630,7 +775,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_unloa
 // VISION / MULTIMODAL SUPPORT
 // ============================================================
 
-JNIEXPORT jboolean JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_loadProjector(
+JNIEXPORT jboolean JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_loadProjector(
     JNIEnv* env, jobject,
     jlong context_ptr,
     jstring projector_path
@@ -663,7 +808,7 @@ JNIEXPORT jboolean JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_l
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
-JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_unloadProjector(
+JNIEXPORT void JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_unloadProjector(
     JNIEnv* env, jobject,
     jlong context_ptr
 ) {
@@ -676,7 +821,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_unloa
     }
 }
 
-JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_generateWithVision(
+JNIEXPORT void JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_generateWithVision(
     JNIEnv* env, jobject,
     jlong context_ptr,
     jstring prompt_js,
@@ -706,7 +851,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
     };
 
     if (!context->ctx_vision || !context->ctx || !context->model) {
-        send_error("Vision projector not loaded — call loadProjector() first");
+        send_error("Vision projector not loaded â€” call loadProjector() first");
         return;
     }
 
@@ -718,7 +863,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
     }
 
     try {
-        // Decode JPEG → mtmd_bitmap using the stb_image helper
+        // Decode JPEG â†’ mtmd_bitmap using the stb_image helper
         jsize img_len  = env->GetArrayLength(image_bytes);
         jbyte* img_ptr = env->GetByteArrayElements(image_bytes, nullptr);
         mtmd_bitmap* bitmap = mtmd_helper_bitmap_init_from_buf(
@@ -730,14 +875,14 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
 
         if (!bitmap) {
             LOGE("generateWithVision: failed to decode image");
-            send_error("Failed to decode image — unsupported format?");
+            send_error("Failed to decode image â€” unsupported format?");
             std::lock_guard<std::mutex> lock(context->mutex);
             context->is_generating = false;
             return;
         }
 
         // Build prompt: insert media marker before the existing prompt text.
-        // Format: "<marker>\n<prompt>" — vision model sees image then question.
+        // Format: "<marker>\n<prompt>" â€” vision model sees image then question.
         const char* prompt_str = env->GetStringUTFChars(prompt_js, nullptr);
         std::string full_prompt = std::string(mtmd_default_marker()) + "\n" + std::string(prompt_str ? prompt_str : "");
         if (prompt_str) env->ReleaseStringUTFChars(prompt_js, prompt_str);
@@ -841,7 +986,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
 
         llama_batch_free(batch);
         llama_sampler_free(chain);
-        LOGI("generateWithVision: complete — %d tokens generated", n_generated);
+        LOGI("generateWithVision: complete â€” %d tokens generated", n_generated);
         env->CallVoidMethod(callback, on_complete_method);
 
     } catch (const std::exception& ex) {
@@ -858,7 +1003,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
     }
 }
 
-JNIEXPORT jobject JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_getPerfMetrics(JNIEnv* env, jobject, jlong context_ptr) {
+JNIEXPORT jobject JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_getPerfMetrics(JNIEnv* env, jobject, jlong context_ptr) {
     if (context_ptr == 0 || !g_PerfMetricsClass) return nullptr;
     auto* context = reinterpret_cast<LlamaContext*>(context_ptr);
     llama_perf_context_data perf = llama_perf_context(context->ctx);
@@ -869,7 +1014,7 @@ JNIEXPORT jobject JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_ge
     return env->NewObject(g_PerfMetricsClass, ctor, perf.t_p_eval_ms, perf.t_eval_ms, perf.t_load_ms, perf.n_eval);
 }
 
-JNIEXPORT jobject JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_getModelMetadata(JNIEnv* env, jobject, jstring path) {
+JNIEXPORT jobject JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_getModelMetadata(JNIEnv* env, jobject, jstring path) {
     if (!path || !g_ModelMetadataClass || !g_HashMapClass) return nullptr;
     if (!ensure_backend_initialized("")) {
         LOGE("getModelMetadata: backend initialization failed");
@@ -933,7 +1078,7 @@ JNIEXPORT jobject JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_ge
 }
 
 // FIX 1: Implement loadDraftModel JNI body
-JNIEXPORT jboolean JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_loadDraftModel(
+JNIEXPORT jboolean JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_loadDraftModel(
     JNIEnv* env, jobject,
     jstring modelPath,
     jint nCtx,
@@ -979,7 +1124,7 @@ JNIEXPORT jboolean JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_l
 }
 
 // FIX 1: Implement unloadDraftModel JNI body
-JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_unloadDraftModel(
+JNIEXPORT void JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_unloadDraftModel(
     JNIEnv* env, jobject
 ) {
     // Free g_draft_context
@@ -997,7 +1142,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_unloa
 }
 
 // FIX 1: Implement generateSpeculative JNI body
-JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_generateSpeculative(
+JNIEXPORT void JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_generateSpeculative(
     JNIEnv* env, jobject obj,
     jlong context_ptr,
     jstring prompt,
@@ -1011,9 +1156,9 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
     // SAFETY CHECK:
     // If g_draft_loaded == false OR g_draft_context == nullptr:
     if (!g_draft_loaded || !g_draft_context || !context || !context->ctx) {
-        // → call normal generate() and return
-        // → do NOT crash
-        Java_com_localmind_app_llm_nativelib_LlamaCppBridge_generate(
+        // â†’ call normal generate() and return
+        // â†’ do NOT crash
+        Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_generate(
             env, obj, context_ptr, prompt, stop_tokens,
             (jfloat)0.7f,          // temperature
             (jfloat)0.9f,          // top_p
@@ -1034,6 +1179,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
             (jint)0,               // mirostat
             (jfloat)5.0f,          // mirostat_tau
             (jfloat)0.1f,          // mirostat_eta
+            (jboolean)JNI_FALSE,   // suppress_think_token
             tokenCallback
         );
         return;
@@ -1223,7 +1369,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
 }
 
 // ============================================================
-// POCKETPAL PARITY: generateWithMessages — Native Chat Template
+// POCKETPAL PARITY: generateWithMessages â€” Native Chat Template
 // ============================================================
 // PocketPal: context.completion({ messages: [...], jinja: true })
 // llama.rn C++ side mein llama_chat_apply_template() call hota hai.
@@ -1231,13 +1377,13 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
 // C++ side pe model ka built-in chat template apply karo,
 // phir generated prompt se normal generate() flow chalao.
 // Benefits:
-//   1. Model-native template — exact same tokens jo GGUF ke andar hain
-//   2. Prefix cache stable — template consistent hai across turns
-//   3. Stop tokens auto-detect — native EOS/EOT tokens se
-//   4. Kotlin side ka PromptTemplateEngine bypass — ek source of truth
+//   1. Model-native template â€” exact same tokens jo GGUF ke andar hain
+//   2. Prefix cache stable â€” template consistent hai across turns
+//   3. Stop tokens auto-detect â€” native EOS/EOT tokens se
+//   4. Kotlin side ka PromptTemplateEngine bypass â€” ek source of truth
 // JSON format: [{"role":"system","content":"..."},{"role":"user","content":"..."},...]
 
-JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_generateWithMessages(
+JNIEXPORT void JNICALL Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_generateWithMessages(
     JNIEnv* env, jobject thiz, jlong context_ptr, jstring messages_json, jobjectArray stop_tokens,
     jfloat temperature, jfloat top_p, jint top_k, jfloat repeat_penalty, jint penalty_last_n,
     jint max_tokens, jboolean should_update_cache, jboolean cache_prompt, jfloat defrag_threshold,
@@ -1246,18 +1392,19 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
     jfloat typical_p,
     jfloat penalty_freq, jfloat penalty_present,
     jint mirostat, jfloat mirostat_tau, jfloat mirostat_eta,
+    jboolean suppress_think_token,
     jobject callback) {
 
     if (context_ptr == 0) return;
     auto* context = reinterpret_cast<LlamaContext*>(context_ptr);
 
-    // ── Step 1: Parse JSON messages ───────────────────────────────────────────
+    // â”€â”€ Step 1: Parse JSON messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const char* json_chars = env->GetStringUTFChars(messages_json, nullptr);
     if (!json_chars) return;
     std::string json_str(json_chars);
     env->ReleaseStringUTFChars(messages_json, json_chars);
 
-    // Lightweight JSON parser — no external deps needed.
+    // Lightweight JSON parser â€” no external deps needed.
     // Format: [{"role":"...","content":"..."}, ...]
     struct ChatMsg { std::string role; std::string content; };
     std::vector<ChatMsg> parsed_messages;
@@ -1316,7 +1463,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
         return;
     }
 
-    // ── Step 2: Build llama_chat_message vector ───────────────────────────────
+    // â”€â”€ Step 2: Build llama_chat_message vector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // llama_chat_message is defined in llama.h C interface:
     //   typedef struct llama_chat_message { const char* role; const char* content; } llama_chat_message;
     // We use pointers into parsed_messages strings (which remain alive for the duration).
@@ -1326,25 +1473,25 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
         chat_msgs.push_back({ m.role.c_str(), m.content.c_str() });
     }
 
-    // chat_ptrs not needed — public API takes flat array directly
+    // chat_ptrs not needed â€” public API takes flat array directly
 
-    // ── Step 3: Auto-detect template from model metadata ─────────────────────
+    // â”€â”€ Step 3: Auto-detect template from model metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // llama_model_chat_template() reads "tokenizer.chat_template" from GGUF metadata.
     // This is the EXACT same function PocketPal/llama.rn uses with jinja=true.
     const char* raw_tmpl = llama_model_chat_template(context->model, /*name=*/nullptr);
     std::string tmpl_str = raw_tmpl ? raw_tmpl : "";
 
-    // ── Step 4: Apply chat template → final prompt string ────────────────────
+    // â”€â”€ Step 4: Apply chat template â†’ final prompt string â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Public API signature (llama.h):
     //   int32_t llama_chat_apply_template(const char* tmpl,
     //       const llama_chat_message* chat, size_t n_msg,
     //       bool add_ass, char* buf, int32_t length)
     // NOTE: first arg is const char* tmpl (NOT llama_model*)
-    // tmpl=nullptr → use built-in chatml default
+    // tmpl=nullptr â†’ use built-in chatml default
     std::string final_prompt;
     const char* tmpl_ptr = tmpl_str.empty() ? nullptr : tmpl_str.c_str();
 
-    // Dry-run: buf=nullptr, length=0 → returns required buffer size
+    // Dry-run: buf=nullptr, length=0 â†’ returns required buffer size
     int32_t needed = llama_chat_apply_template(
         tmpl_ptr,
         chat_msgs.data(),
@@ -1391,8 +1538,8 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
 
     LOGI("generateWithMessages: template applied, prompt_len=%zu", final_prompt.size());
 
-    // ── Step 5: Convert final_prompt to jstring and call existing generate() ──
-    // Reuse ALL existing generate() logic — prefill, KV cache, sampling, streaming, stop tokens.
+    // â”€â”€ Step 5: Convert final_prompt to jstring and call existing generate() â”€â”€
+    // Reuse ALL existing generate() logic â€” prefill, KV cache, sampling, streaming, stop tokens.
     // This is the cleanest approach: zero code duplication.
     jstring prompt_jstr = env->NewStringUTF(final_prompt.c_str());
     if (!prompt_jstr) {
@@ -1400,8 +1547,8 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
         return;
     }
 
-    // Delegate to existing generate() function — same thread, same context, same callback
-    Java_com_localmind_app_llm_nativelib_LlamaCppBridge_generate(
+    // Delegate to existing generate() function â€” same thread, same context, same callback
+    Java_com_tk854_localmind_llm_nativelib_LlamaCppBridge_generate(
         env, thiz, context_ptr, prompt_jstr, stop_tokens,
         temperature, top_p, top_k, repeat_penalty, penalty_last_n,
         max_tokens, should_update_cache, cache_prompt, defrag_threshold,
@@ -1410,6 +1557,7 @@ JNIEXPORT void JNICALL Java_com_localmind_app_llm_nativelib_LlamaCppBridge_gener
         typical_p,
         penalty_freq, penalty_present,
         mirostat, mirostat_tau, mirostat_eta,
+        suppress_think_token,
         callback
     );
 
