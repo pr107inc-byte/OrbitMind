@@ -46,7 +46,7 @@
 
 **LocalMind** is a privacy-first, open-source Android application that brings the power of Large Language Models directly to your mobile device. Unlike cloud-based AI assistants like ChatGPT, Google Gemini, or Claude â€” LocalMind runs **100% on your phone** using the [llama.cpp](https://github.com/ggerganov/llama.cpp) inference engine with GGUF quantized models.
 
-### Why LocalMind?
+### Why LocalMind ?
 
 | âŒ Cloud AI Problems | âœ… LocalMind Solution |
 |---|---|
